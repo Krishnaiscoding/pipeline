@@ -1,0 +1,40 @@
+name: Pipeline
+
+on:
+    push:
+        branches:
+            - main
+    pull_requests:
+        branches:
+            - main
+
+job:
+    build:
+        name: Build and Test
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v3
+            - name: Build docker image
+              run: docker build -t cicd-image .
+            - name: Run tests
+              run: docker run -d -p 8080:80 cicd-image --name test-container cicd-image && sleep 5 && curl http://localhost:8080 && docker stop test-container && docker rm test-container
+    
+    push:
+        name: Push Image
+        needs: build
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+            - name: Login to Docker hub
+              run: docker/login-action@v3
+              with:
+                username: ${{secrets.DOCKER_USERNAME}}
+                password: ${{secrets.DOCKER_PASSWORD}}
+            - name: Build Docker Image
+              run: docker build -t ${{secrets.DOCKER_USERNAME}}/cicd-image .
+            - name: Push Docker Image
+              run: docker push ${{secrets.DOCKER_USERNAME}}/cicd-image
+
+            
